@@ -32,6 +32,13 @@ class SearchWindow(gtk.Window):
 	folder = None	
 	paused = False
 	
+	def addFiles(self,files):
+		for file in files:
+			self.addFile(file)
+		
+	def addFile(self,file):
+		self.liststore.append((file,))		
+	
 	def getSearchParams(self):
 		'''
 		Метод возвращает объект параметров для поиска
@@ -60,6 +67,9 @@ class SearchWindow(gtk.Window):
 		self._startSpinner()
 		self.statusBox.set_visible(True)
 		
+		self.liststore = gtk.ListStore(str)
+		self.treeview.set_model(self.liststore)
+ 		
 		self.searchThread = SearchThread(self.getSearchParams())
 		self.searchThread.subscribe(self.update)
 		self.searchThread.start() 
@@ -67,6 +77,7 @@ class SearchWindow(gtk.Window):
 	def update(self,event):
 		if event.type == event.TYPE_FILE_FOUND:
 			print event.files
+			self.addFiles(event.files)
 		elif event.type == event.TYPE_END:
 			self.stopSearch()
 		elif event.type == event.TYPE_NOTICE:
@@ -175,8 +186,11 @@ class SearchWindow(gtk.Window):
 		addParamsExpander.add(addParamsHBox)
 
 		#treeview
-		treeView = gtk.TreeView()
 		
+		self.treeview = gtk.TreeView()
+		r = gtk.CellRendererText()
+		self.treeview.insert_column_with_attributes(-1, "File name", r, text=0)
+
 		#status box
 		self.statusBox = gtk.HBox(False,10)
 		self.spinner = gtk.Spinner()
@@ -211,7 +225,9 @@ class SearchWindow(gtk.Window):
 		
 		vbox.pack_start(mainParamsVBox, False, True, 10)
 		vbox.pack_start(addParamsExpander, False, True, 0)
-		vbox.pack_start(treeView, True, True, 0)
+		scrolled = gtk.ScrolledWindow()
+		scrolled.add(self.treeview)
+		vbox.pack_start(scrolled, True, True, 0)
 		vbox.pack_start(self.statusBox, False, True, 0)
 		vbox.pack_start(buttonBox, False, True, 0)
 		self.add(vbox)

@@ -121,7 +121,11 @@ class SearchThread(threading.Thread,observer.Observable):
 		command = "locate "
 		if not self.params.fileCaseSensitive:
 			command = command + "-i "
-		command = command + " -b '\\" + self.params.fileName + "'|egrep \"^" + self.params.folder + '"'
+		if self.params.fileExact:
+			command = command + " -b '\\" + self.params.fileName + "'"
+		else:
+			command = command + " " + self.params.fileName
+		command = command +	"|egrep \"^" + self.params.folder + '"'
 		result = os.popen(command).read()
 		lines = result.splitlines()
 		result = []
