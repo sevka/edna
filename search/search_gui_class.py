@@ -1,12 +1,42 @@
+# -*- coding: utf-8 -*-
+#
+#       search_gui_class.py
+#       
+#       Copyright 2011 Sevka <sevka@ukr.net>
+#       
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 2 of the License, or
+#       (at your option) any later version.
+#       
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       GNU General Public License for more details.
+#       
+#       You should have received a copy of the GNU General Public License
+#       along with this program; if not, write to the Free Software
+#       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#       MA 02110-1301, USA.
+
 import gtk
 import os
+import gettext
 from search_thread_class import SearchThread, SearchParams
+gettext.install('edna', unicode=True)
 
 class SearchWindow(gtk.Window):
+	'''
+	Класс окна поиска
+	'''
 	folder = None	
 	paused = False
 	
 	def getSearchParams(self):
+		'''
+		Метод возвращает объект параметров для поиска
+		:return: SearchParams
+		'''
 		params = SearchParams()
 		
 		params.fileName = self.fileNameEntry.get_text()
@@ -20,7 +50,9 @@ class SearchWindow(gtk.Window):
 		return params
 		
 	def startSearch(self,sender):
-		
+		'''
+		Запуск поиска
+		'''
 		self.buttonStart.set_sensitive(0)	
 		self.buttonStop.set_sensitive(1)
 		self.buttonPause.set_sensitive(1)
@@ -36,6 +68,9 @@ class SearchWindow(gtk.Window):
 		print event.message
 	
 	def stopSearch(self,sender):
+		'''
+		Остановка поиска
+		'''
 		self.buttonStart.set_sensitive(1)	
 		self.buttonStop.set_sensitive(0)
 		self.buttonPause.set_sensitive(0)
@@ -45,14 +80,17 @@ class SearchWindow(gtk.Window):
 		self.searchThread.stop() 
 	
 	def pauseSearch(self,sender):
+		'''
+		Поставить поиск на паузу
+		'''
 		self.paused = not self.paused
 		if self.paused:
 			self._stopSpinner()
-			self.buttonPause.set_label('Continue search')
+			self.buttonPause.set_label(_('Continue search'))
 			self.searchThread.pause() 
 		else:
 			self._startSpinner()
-			self.buttonPause.set_label('Pause search')			
+			self.buttonPause.set_label(_('Pause search'))
 			self.searchThread.contin() 
 			
 	def _startSpinner(self):
@@ -62,13 +100,18 @@ class SearchWindow(gtk.Window):
 		self.spinner.stop()	
 	
 	def __init__(self, folder):
+		'''
+		Конструктор
+		:param folder: Папка, в которой будет осуществляться поиск
+		:type folder: string
+		'''
 		gtk.gdk.threads_init()
 		if os.path.exists(folder):
 			self.folder = folder
 			
 		gtk.Window.__init__(self)
 		
-		self.set_title('File search')
+		self.set_title(_('File search'))
 		self.set_position(gtk.WIN_POS_CENTER)
 		self.set_default_size(800,500)
 		vbox = gtk.VBox(False, 10)
@@ -77,15 +120,15 @@ class SearchWindow(gtk.Window):
 		mainParamsVBox = gtk.VBox(False,10)
 
 		hbox1 = gtk.HBox(False,0)
-		label1 = gtk.Label('File name')
+		label1 = gtk.Label(_('File name'))
 		self.fileNameEntry = gtk.Entry()
-		self.exactCB = gtk.CheckButton('Exact')
-		self.caseCB = gtk.CheckButton('Case sensitive')
-		self.regexCB = gtk.CheckButton('Regex')
+		self.exactCB = gtk.CheckButton(_('Exact'))
+		self.caseCB = gtk.CheckButton(_('Case sensitive'))
+		self.regexCB = gtk.CheckButton(_('Regex'))
 		self.fileTypeCombo = gtk.combo_box_new_text()
-		self.fileTypeCombo.append_text('Files and folders')
-		self.fileTypeCombo.append_text('Files only')
-		self.fileTypeCombo.append_text('Folders only')
+		self.fileTypeCombo.append_text(_('Files and folders'))
+		self.fileTypeCombo.append_text(_('Files only'))
+		self.fileTypeCombo.append_text(_('Folders only'))
 		self.fileTypeCombo.set_active(0)
 		hbox1.pack_start(label1, False, False, 10)
 		hbox1.pack_start(self.fileNameEntry, True, True)
@@ -96,12 +139,12 @@ class SearchWindow(gtk.Window):
 
 
 		hbox2 = gtk.HBox(False,0)
-		label2 = gtk.Label('Search in folder')
-		self.fileChooser = gtk.FileChooserButton('ChooseFolder')
+		label2 = gtk.Label(_('Search in folder'))
+		self.fileChooser = gtk.FileChooserButton(_('Select folder'))
 		self.fileChooser.set_action(gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER)
 		if self.folder:
 			self.fileChooser.set_current_folder(self.folder)
-		self.folderRecursiveCB = gtk.CheckButton('Recursive')
+		self.folderRecursiveCB = gtk.CheckButton(_('Recursive'))
 		self.folderRecursiveCB.set_active(True)
 		hbox2.pack_start(label2, False, False, 10)
 		hbox2.pack_start(self.fileChooser, True, True)
@@ -111,7 +154,7 @@ class SearchWindow(gtk.Window):
 		mainParamsVBox.pack_start(hbox2)
 
 		#additional params
-		addParamsExpander = gtk.Expander('Additional parameters')
+		addParamsExpander = gtk.Expander(_('Additional parameters'))
 		addParamsHBox = gtk.HBox(False,0)
 
 		addParamsVBox1 = gtk.VBox()
@@ -137,11 +180,11 @@ class SearchWindow(gtk.Window):
 		#button box
 		buttonBox = gtk.HButtonBox()
 		buttonBox.set_border_width(10)
-		self.buttonStart = gtk.Button('Start search')
-		self.buttonStop = gtk.Button('Stop search')
-		self.buttonPause = gtk.ToggleButton('Pause search')
+		self.buttonStart = gtk.Button(_('Start search'))
+		self.buttonStop = gtk.Button(_('Stop search'))
+		self.buttonPause = gtk.ToggleButton(_('Pause search'))
 		self.buttonPause.set_mode(True)
-		self.buttonClose = gtk.Button('Close')
+		self.buttonClose = gtk.Button(_('Close'))
 		buttonBox.add(self.buttonStart)
 		buttonBox.add(self.buttonStop)
 		buttonBox.add(self.buttonPause)
@@ -169,5 +212,5 @@ class SearchWindow(gtk.Window):
 def progexit(*args):
 	gtk.main_quit()
 	
-searchWindow = SearchWindow('/home/sevka/pub')
+searchWindow = SearchWindow('/home/sevka')
 gtk.main()
