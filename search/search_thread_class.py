@@ -44,7 +44,9 @@ class SearchEvent(observer.Event):
 		'''
 		self.type = type
 		if type == self.TYPE_FILE_FOUND:
-			this.files = arg
+			self.files = arg
+		if type == self.TYPE_NOTICE:
+			self.message = arg
 
 class SearchParams():
 	'''
@@ -93,12 +95,12 @@ class SearchThread(threading.Thread,observer.Observable):
 		print 'Start search'
 		print self.params.folder + " " + str(self.params.fileType)
 		self.status = self.STATUS_RUNNED
+		self.notifyObservers(SearchEvent(SearchEvent.TYPE_NOTICE,'Search with locate command'))
 		files = self.locateSearch()
 		if files:
-			e = SearchEvent(SearchEvent.TYPE_FILE_FOUND,files)
-			self.notifyObservers(e)
-		while 1:
-			e = observer.Event()
+			self.notifyObservers(SearchEvent(SearchEvent.TYPE_FILE_FOUND,files))
+		for i in range(5):
+			e = SearchEvent(SearchEvent.TYPE_NOTICE)
 			e.message = "Bla-bla-bla"
 			self.notifyObservers(e)
 			time.sleep(1)
@@ -109,6 +111,7 @@ class SearchThread(threading.Thread,observer.Observable):
 					time.sleep(1)
 			if(self.status == self.STATUS_STOPPED):
 				break
+		self.notifyObservers(SearchEvent(SearchEvent.TYPE_END))
 	
 	def locateSearch(self):
 		'''
@@ -121,11 +124,12 @@ class SearchThread(threading.Thread,observer.Observable):
 		command = command + " -b '\\" + self.params.fileName + "'|egrep \"^" + self.params.folder + '"'
 		result = os.popen(command).read()
 		lines = result.splitlines()
-		
+		result = []
 		for file in lines:
-			pass
-		
-		return lines
+			if os.path.exists(file):
+				if (self.params.fileType == self.params.FILE_TYPE_BOTH) or (self.params.fileType == self.params.FILE_TYPE_FOLDERS_ONLY and os.path.isdir(file)) or	(self.params.fileType == self.params.FILE_TYPE_FILES_ONLY and os.path.isfile(file)):
+					result.append(file)
+		return result
 	
 	def pause(self):
 		'''
@@ -144,3 +148,5 @@ class SearchThread(threading.Thread,observer.Observable):
 		Остановить поиск
 		'''
 		self.status = self.STATUS_STOPPED
+		
+		

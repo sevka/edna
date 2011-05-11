@@ -65,9 +65,14 @@ class SearchWindow(gtk.Window):
 		self.searchThread.start() 
 		
 	def update(self,event):
-		print event.message
+		if event.type == event.TYPE_FILE_FOUND:
+			print event.files
+		elif event.type == event.TYPE_END:
+			self.stopSearch()
+		elif event.type == event.TYPE_NOTICE:
+			self.updateStatus(event.message)
 	
-	def stopSearch(self,sender):
+	def stopSearch(self,sender = None):
 		'''
 		Остановка поиска
 		'''
@@ -97,7 +102,13 @@ class SearchWindow(gtk.Window):
 		self.spinner.start()
 	
 	def _stopSpinner(self):
-		self.spinner.stop()	
+		self.spinner.stop()
+			
+	def updateStatus(self, message):
+		'''
+		Обновить статус
+		'''
+		self.statusLabel.set_label(message)
 	
 	def __init__(self, folder):
 		'''
@@ -171,11 +182,11 @@ class SearchWindow(gtk.Window):
 		self.spinner = gtk.Spinner()
 		#self.spinner.set_sensitive(0)
 
-		statusLabel = gtk.Label('Test')
+		self.statusLabel = gtk.Label('')
 #		statusLabel.set_justify(gtk.JUSTIFY_LEFT)
-		statusLabel.set_alignment(0,0)
+		self.statusLabel.set_alignment(0,0)
 		self.statusBox.pack_start(self.spinner,False,False,10)
-		self.statusBox.pack_start(statusLabel, True, True,10)
+		self.statusBox.pack_start(self.statusLabel, True, True,10)
 		
 		#button box
 		buttonBox = gtk.HButtonBox()
