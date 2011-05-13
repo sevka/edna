@@ -75,8 +75,11 @@ class SearchWindow(gtk.Window):
 		self.searchThread.start() 
 		
 	def update(self,event):
+		'''
+		Коллбек, который вызывается SearchThread'ом при возникновении события
+		'''
 		if event.type == event.TYPE_FILE_FOUND:
-			print event.files
+			#print event.files
 			self.addFiles(event.files)
 		elif event.type == event.TYPE_END:
 			self.stopSearch()
@@ -121,6 +124,9 @@ class SearchWindow(gtk.Window):
 		'''
 		self.statusLabel.set_label(message)
 	
+	def regexCBClick(self,sender):
+		self.exactCB.set_sensitive(not self.regexCB.get_active())
+	
 	def __init__(self, folder):
 		'''
 		Конструктор
@@ -158,7 +164,8 @@ class SearchWindow(gtk.Window):
 		hbox1.pack_start(self.exactCB, False, False,10)
 		hbox1.pack_start(self.caseCB, False, False,10)
 		hbox1.pack_start(self.regexCB, False, False,10)
-
+		
+		self.regexCB.connect('clicked',self.regexCBClick)
 
 		hbox2 = gtk.HBox(False,0)
 		label2 = gtk.Label(_('Search in folder'))
@@ -199,8 +206,9 @@ class SearchWindow(gtk.Window):
 		self.statusLabel = gtk.Label('')
 #		statusLabel.set_justify(gtk.JUSTIFY_LEFT)
 		self.statusLabel.set_alignment(0,0)
+		self.statusLabel.set_width_chars(50)
 		self.statusBox.pack_start(self.spinner,False,False,10)
-		self.statusBox.pack_start(self.statusLabel, True, True,10)
+		self.statusBox.pack_start(self.statusLabel, False, False,10)
 		
 		#button box
 		buttonBox = gtk.HButtonBox()

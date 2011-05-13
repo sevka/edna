@@ -22,7 +22,9 @@
 import threading
 import observer
 import time
+import math
 import os
+import fnmatch
 
 class SearchEvent(observer.Event):
 	'''
@@ -73,6 +75,8 @@ class SearchThread(threading.Thread,observer.Observable):
 	STATUS_STOPPED = 0
 	STATUS_RUNNED = 1
 	STATUS_PAUSED = 2
+
+	locateResult = []	#: Файлы, найденные locate
 	
 	status = 0
 	params = None #: SearchParams
@@ -99,18 +103,7 @@ class SearchThread(threading.Thread,observer.Observable):
 		files = self.locateSearch()
 		if files:
 			self.notifyObservers(SearchEvent(SearchEvent.TYPE_FILE_FOUND,files))
-		for i in range(5):
-			e = SearchEvent(SearchEvent.TYPE_NOTICE)
-			e.message = "Bla-bla-bla"
-			self.notifyObservers(e)
-			time.sleep(1)
-			if (self.status == self.STATUS_PAUSED):
-				while 1:
-					if self.status != self.STATUS_PAUSED:
-						break
-					time.sleep(1)
-			if(self.status == self.STATUS_STOPPED):
-				break
+		self.walkSearch()
 		self.notifyObservers(SearchEvent(SearchEvent.TYPE_END))
 	
 	def locateSearch(self):
@@ -118,23 +111,63 @@ class SearchThread(threading.Thread,observer.Observable):
 		Поиск с помощью locate
 		'''
 		# locate -b -i '\core'|egrep "^/home/sevka"
-		command = "locate "
+		command = "locate --existing --follow --quiet "
 		if not self.params.fileCaseSensitive:
-			command = command + "-i "
-		if self.params.fileExact:
-			command = command + " -b '\\" + self.params.fileName + "'"
+			command = command + " --ignore-case "
+		if self.params.fileRegEx:
+			command = command + " --regex " + self.params.fileName
+		elif self.params.fileExact:
+			command = command + " --basename '\\" + self.params.fileName + "'"
 		else:
 			command = command + " " + self.params.fileName
 		command = command +	"|egrep \"^" + self.params.folder + '"'
+		print command
 		result = os.popen(command).read()
 		lines = result.splitlines()
 		result = []
 		for file in lines:
 			if os.path.exists(file):
 				if (self.params.fileType == self.params.FILE_TYPE_BOTH) or (self.params.fileType == self.params.FILE_TYPE_FOLDERS_ONLY and os.path.isdir(file)) or	(self.params.fileType == self.params.FILE_TYPE_FILES_ONLY and os.path.isfile(file)):
-					result.append(file)
-		return result
+					self.locateResult.append(file)
+		return self.locateResult
 	
+	def checkForPause(self):
+		'''
+		Проверям, не стоит ли поиск на паузе
+		'''
+		if (self.status == self.STATUS_PAUSED):
+			while 1:
+				if self.status != self.STATUS_PAUSED:
+					break
+				time.sleep(1)
+	
+	def walkSearch(self):
+		'''
+		Поиск с помщью питона (os.walk)
+		'''
+		result = []
+		lastTime = time.time()
+		for path, dirs, files in os.walk(self.params.folder):
+			self.checkForPause()
+			if(self.status == self.STATUS_STOPPED):
+				break
+			#Слишком часто вызывать notifyObservers не нужно.  К тому же почему-то программа падает при этом
+			#Вызываем не чаще чем раз в секунду
+			if round(time.time()) > lastTime:
+				lastTime = round(time.time())
+				self.notifyObservers(SearchEvent(SearchEvent.TYPE_NOTICE,"Search in " + path + "..."))
+				
+			for filename in fnmatch.filter(files, self.params.fileName):
+				self.checkForPause()
+				if(self.status == self.STATUS_STOPPED):
+					break
+			
+			   	file = os.path.join(path, filename)
+			   	if file not in self.locateResult:
+			   		result.append(file)
+			   		self.notifyObservers(SearchEvent(SearchEvent.TYPE_FILE_FOUND,[file]))
+					print file
+					
 	def pause(self):
 		'''
 		Поставить поиск на паузу
@@ -152,5 +185,4 @@ class SearchThread(threading.Thread,observer.Observable):
 		Остановить поиск
 		'''
 		self.status = self.STATUS_STOPPED
-		
 		
