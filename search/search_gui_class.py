@@ -55,6 +55,10 @@ class SearchWindow(gtk.Window):
         params.folder = self.fileChooser.get_current_folder()
         params.folderRecursive = self.folderRecursiveCB.get_active()
         
+        params.textText = self.textEntry.get_text()
+        params.textCaseSensitive = self.textCaseCB.get_active()
+        params.textRegexCB = self.textRegexCB.get_active()
+        
         #additional
         params.fileHidden = self.hiddenCB.get_active()
          

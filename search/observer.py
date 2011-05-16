@@ -45,10 +45,10 @@ class Observable(object):
         '''
         self.callbacks.append(callback)
         
-    def notifyObservers(self, event):
+    def notify_observers(self, event):
         '''
         Уведомить наблюдателей о событии
         '''
         #event.source = self
-        for fn in self.callbacks:
-            fn(event)
+        for callback in self.callbacks:
+            callback(event)

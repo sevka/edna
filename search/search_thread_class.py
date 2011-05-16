@@ -69,6 +69,9 @@ class SearchParams():
     fileRegEx = False
     
     #additional
+    textText = None
+    textCaseSensitive = False
+    textRegEx = False
     fileHidden = False
 
 class SearchThread(threading.Thread, observer.Observable):
@@ -110,7 +113,25 @@ class SearchThread(threading.Thread, observer.Observable):
             if fileName.startwith('/'):
                 fileName = fileName[len(root):]
         return fileName.find('/.') >= 0 or fileName.find('.') == 0
-        
+    
+    def isTextExists(self, file):
+        '''
+        Ищет текст в файле
+        '''
+        if os.path.isdir(file):
+            return False
+        grepCommand = "grep --count --max-count=1 --no-messages " 
+        if not self.params.textCaseSensitive:
+            grepCommand = grepCommand + " --ignore-case "
+        if self.params.textRegexCB:
+            grepCommand = grepCommand + " --extended-regexp "
+        grepCommand = grepCommand + "'" + self.params.textText + "' " + file
+        print grepCommand
+        grepResult = os.popen(grepCommand).read()
+        if not grepResult or grepResult.splitlines()[0] != '1':
+            return False
+        else:
+            return True
     def run(self):
         '''
         Метод запускатор треда
@@ -118,12 +139,13 @@ class SearchThread(threading.Thread, observer.Observable):
         print 'Start search'
         print self.params.folder + " " + str(self.params.fileType)
         self.status = self.STATUS_RUNNED
-        self.notifyObservers(SearchEvent(SearchEvent.TYPE_NOTICE, 'Search with locate command'))
-        files = self.locateSearch()
-        if files:
-            self.notifyObservers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, files))
+        self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, 'Search with locate command'))
+        if self.params.fileName:
+            files = self.locateSearch()
+            if files:
+                self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, files))
         self.walkSearch()
-        self.notifyObservers(SearchEvent(SearchEvent.TYPE_END))
+        self.notify_observers(SearchEvent(SearchEvent.TYPE_END))
     
     def locateSearch(self):
         '''
@@ -149,6 +171,8 @@ class SearchThread(threading.Thread, observer.Observable):
                 if (not self.params.fileHidden) and self.isHidden(file):
                     continue
                 if (self.params.fileType == self.params.FILE_TYPE_BOTH) or (self.params.fileType == self.params.FILE_TYPE_FOLDERS_ONLY and os.path.isdir(file)) or    (self.params.fileType == self.params.FILE_TYPE_FILES_ONLY and os.path.isfile(file)):
+                    if self.params.textText and not self.isTextExists(file):
+                        continue
                     self.locateResult.append(file)
         return self.locateResult
     
@@ -179,7 +203,7 @@ class SearchThread(threading.Thread, observer.Observable):
             #Вызываем не чаще чем раз в секунду
             if round(time.time()) > lastTime:
                 lastTime = round(time.time())
-                self.notifyObservers(SearchEvent(SearchEvent.TYPE_NOTICE, "Search in " + path + "..."))
+                self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, "Search in " + path + "..."))
             filesAndDirs = []
             if self.params.fileRegEx:
                 prog = re.compile(pattern, re.IGNORECASE if not self.params.fileCaseSensitive else 0)
@@ -206,7 +230,7 @@ class SearchThread(threading.Thread, observer.Observable):
                     continue
                 if file not in self.locateResult:
                     result.append(file)
-                    self.notifyObservers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, [file]))
+                    self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, [file]))
                 print file
                     
     def pause(self):
