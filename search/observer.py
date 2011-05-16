@@ -22,34 +22,33 @@
 Интерфейсы для реализации паттерна Наблюдатель (Observer)
 '''
 class Event(object):
-	'''
-	Интерфейс события наблюдаемого объекта
-	'''
-	pass
+    '''
+    Интерфейс события наблюдаемого объекта
+    '''
+    pass
 
 class Observable(object):
-	'''
-	Интерфейс наблюдаемого объекта
-	'''
-	def __init__(self):
-		'''
-		Конструктор
-		'''
-		self.callbacks = []
-		
-	def subscribe(self, callback):
-		'''
-		Подключить наблюдателя
-		:param callback: Метод-коллбек наблюдателя
-		:type callback: function
-		'''
-		self.callbacks.append(callback)
-		
-	def notifyObservers(self, event):
-		'''
-		Уведомить наблюдателей о событии
-		'''
-		#event.source = self
-		for fn in self.callbacks:
-			fn(event)
-
+    '''
+    Интерфейс наблюдаемого объекта
+    '''
+    def __init__(self):
+        '''
+        Конструктор
+        '''
+        self.callbacks = []
+        
+    def subscribe(self, callback):
+        '''
+        Подключить наблюдателя
+        :param callback: Метод-коллбек наблюдателя
+        :type callback: function
+        '''
+        self.callbacks.append(callback)
+        
+    def notifyObservers(self, event):
+        '''
+        Уведомить наблюдателей о событии
+        '''
+        #event.source = self
+        for fn in self.callbacks:
+            fn(event)
