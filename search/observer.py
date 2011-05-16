@@ -49,7 +49,7 @@ class Observable(object):
 		'''
 		Уведомить наблюдателей о событии
 		'''
-		event.source = self
+		#event.source = self
 		for fn in self.callbacks:
 			fn(event)
 

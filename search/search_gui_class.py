@@ -54,6 +54,10 @@ class SearchWindow(gtk.Window):
 		
 		params.folder = self.fileChooser.get_current_folder()
 		params.folderRecursive = self.folderRecursiveCB.get_active()
+		
+		#additional
+		params.fileHidden = self.hiddenCB.get_active()
+ 		
 		return params
 		
 	def startSearch(self,sender):
@@ -187,7 +191,10 @@ class SearchWindow(gtk.Window):
 		addParamsHBox = gtk.HBox(False,0)
 
 		addParamsVBox1 = gtk.VBox()
-
+		
+		self.hiddenCB = gtk.CheckButton(_('Process hidden files and folders'))
+		addParamsVBox1.pack_start(self.hiddenCB)
+		
 		addParamsHBox.pack_start(addParamsVBox1)
 
 		addParamsExpander.add(addParamsHBox)
@@ -246,6 +253,11 @@ class SearchWindow(gtk.Window):
 		self.statusBox.set_visible(False)
 def progexit(*args):
 	gtk.main_quit()
-	
-searchWindow = SearchWindow('/home/sevka')
-gtk.main()
+
+def main():
+	searchWindow = SearchWindow('/home/sevka')
+	gtk.main()
+	return 0
+
+if __name__ == '__main__':
+    main()
