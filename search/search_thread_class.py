@@ -103,9 +103,9 @@ class SearchThread(threading.Thread,observer.Observable):
 		print self.params.folder + " " + str(self.params.fileType)
 		self.status = self.STATUS_RUNNED
 		self.notifyObservers(SearchEvent(SearchEvent.TYPE_NOTICE,'Search with locate command'))
-		#files = self.locateSearch()
-		#if files:
-		#	self.notifyObservers(SearchEvent(SearchEvent.TYPE_FILE_FOUND,files))
+		files = self.locateSearch()
+		if files:
+			self.notifyObservers(SearchEvent(SearchEvent.TYPE_FILE_FOUND,files))
 		self.walkSearch()
 		self.notifyObservers(SearchEvent(SearchEvent.TYPE_END))
 	
