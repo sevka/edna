@@ -60,19 +60,19 @@ class SearchParams():
     FILE_TYPE_FOLDERS_ONLY = 2
 
     folder = None
-    folderRecursive = True
+    folder_recursive = True
     
-    fileName = None
-    fileType = 0
-    fileExact = False
-    fileCaseSensitive = False
-    fileRegEx = False
+    file_name = None
+    file_type = 0
+    file_exact = False
+    file_case_sensitive = False
+    file_regex = False
     
     #additional
-    textText = None
-    textCaseSensitive = False
-    textRegEx = False
-    fileHidden = False
+    text_text = None
+    text_case_sensitive = False
+    text_regex = False
+    file_hidden = False
 
 class SearchThread(threading.Thread, observer.Observable):
     '''
@@ -102,17 +102,17 @@ class SearchThread(threading.Thread, observer.Observable):
         '''
         Метод проверяет, является ли файл/папка скрытым. 
         Он также возвращает True если хоть где-то в пути есть скрытая папка.
-        :param fileName: Полный путь к файлу (можно и имя файла или относительный путь)
+        :param file_name: Полный путь к файлу (можно и имя файла или относительный путь)
         :param root: Если задан параметр root, то в этом пути допускаются скрытые папки. В этот параметр нужно передать self.params.folder, 
-                    чтобы можно было искать внутри скрытой папки если сама self.params.folder - скрытая. fileName в таком случае должен быть 
+                    чтобы можно было искать внутри скрытой папки если сама self.params.folder - скрытая. file_name в таком случае должен быть 
                     полным путем.
         '''
         if root:
-            if not root.startswith('/') or (fileName.startwith('/') and not fileName.startwith(root)):
+            if not root.startswith('/') or ((fileName.startswith('/') and not fileName.startswith(root))):
                 return None
-            if fileName.startwith('/'):
+            if fileName.startswith('/'):
                 fileName = fileName[len(root):]
-        return fileName.find('/.') >= 0 or fileName.find('.') == 0
+        return (fileName.find('/.') >= 0) or (fileName.find('.') == 0)
     
     def isTextExists(self, file):
         '''
@@ -121,12 +121,12 @@ class SearchThread(threading.Thread, observer.Observable):
         if os.path.isdir(file):
             return False
         grepCommand = "grep --count --max-count=1 --no-messages " 
-        if not self.params.textCaseSensitive:
+        if not self.params.text_case_sensitive:
             grepCommand = grepCommand + " --ignore-case "
-        if self.params.textRegexCB:
+        if self.params.text_regex:
             grepCommand = grepCommand + " --extended-regexp "
-        grepCommand = grepCommand + "'" + self.params.textText + "' " + file
-        print grepCommand
+        grepCommand = grepCommand + "'" + self.params.text_text + "' " + file
+        #print grepCommand
         grepResult = os.popen(grepCommand).read()
         if not grepResult or grepResult.splitlines()[0] != '1':
             return False
@@ -137,13 +137,15 @@ class SearchThread(threading.Thread, observer.Observable):
         Метод запускатор треда
         '''
         print 'Start search'
-        print self.params.folder + " " + str(self.params.fileType)
+        print self.params.folder + " " + str(self.params.file_type)
         self.status = self.STATUS_RUNNED
         self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, 'Search with locate command'))
-        if self.params.fileName:
-            files = self.locateSearch()
-            if files:
-                self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, files))
+        self.locateResult = []
+        if self.params.file_name and self.params.use_locate:
+            self.locateSearch()
+            #files = self.locateSearch()
+            #if files:
+            #    self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, files))
         self.walkSearch()
         self.notify_observers(SearchEvent(SearchEvent.TYPE_END))
     
@@ -151,30 +153,37 @@ class SearchThread(threading.Thread, observer.Observable):
         '''
         Поиск с помощью locate
         '''
+        folder = os.path.realpath(self.params.folder) #@todo: Может перенести вызов realpath куда-то раньше?
         self.locateResult = []
         command = "locate --existing --follow --quiet "
-        if not self.params.fileCaseSensitive:
+        if not self.params.file_case_sensitive:
             command = command + " --ignore-case "
-        if self.params.fileRegEx:
-            command = command + " --regex " + self.params.fileName
-        elif self.params.fileExact:
-            command = command + " --basename '\\" + self.params.fileName + "'"
+            
+        if self.params.file_regex:
+            command = command + " --basename --regex " + self.params.file_name
+        elif self.params.file_exact:
+            command = command + " --basename '\\" + self.params.file_name + "'"
         else:
-            command = command + " " + self.params.fileName
-        command = command +     "|egrep \"^" + self.params.folder + '"'
-        print command
+            command = command + " --basename " + self.params.file_name
+            
+        command = command +     "|egrep \"^" + folder + '"'
+        #print command
         result = os.popen(command).read()
         lines = result.splitlines()
         result = []
         for file in lines:
+            self.checkForPause()
+            if(self.status == self.STATUS_STOPPED):
+                break
             if os.path.exists(file):
-                if (not self.params.fileHidden) and self.isHidden(file):
+                if (not self.params.file_hidden) and self.isHidden(file, folder):
                     continue
-                if (self.params.fileType == self.params.FILE_TYPE_BOTH) or (self.params.fileType == self.params.FILE_TYPE_FOLDERS_ONLY and os.path.isdir(file)) or    (self.params.fileType == self.params.FILE_TYPE_FILES_ONLY and os.path.isfile(file)):
-                    if self.params.textText and not self.isTextExists(file):
+                if (self.params.file_type == self.params.FILE_TYPE_BOTH) or (self.params.file_type == self.params.FILE_TYPE_FOLDERS_ONLY and os.path.isdir(file)) or    (self.params.file_type == self.params.FILE_TYPE_FILES_ONLY and os.path.isfile(file)):
+                    if self.params.text_text and not self.isTextExists(file):
                         continue
                     self.locateResult.append(file)
-        return self.locateResult
+                    self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, [file]))
+        #return self.locateResult
     
     def checkForPause(self):
         '''
@@ -190,12 +199,13 @@ class SearchThread(threading.Thread, observer.Observable):
         '''
         Поиск с помщью питона (os.walk)
         '''
-        pattern = self.params.fileName
-        if not self.params.fileRegEx and not self.params.fileExact:
+        folder = os.path.realpath(self.params.folder)
+        pattern = self.params.file_name
+        if not self.params.file_regex and not self.params.file_exact:
             pattern = '*' + pattern + '*'
         result = []
         lastTime = time.time()
-        for path, dirs, files in os.walk(self.params.folder):
+        for path, dirs, files in os.walk(folder, True, None, self.params.follow_links):
             self.checkForPause()
             if(self.status == self.STATUS_STOPPED):
                 break
@@ -204,15 +214,17 @@ class SearchThread(threading.Thread, observer.Observable):
             if round(time.time()) > lastTime:
                 lastTime = round(time.time())
                 self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, "Search in " + path + "..."))
+            if not self.params.file_hidden and self.isHidden(path, folder):
+                continue
             filesAndDirs = []
-            if self.params.fileRegEx:
-                prog = re.compile(pattern, re.IGNORECASE if not self.params.fileCaseSensitive else 0)
+            if self.params.file_regex:
+                prog = re.compile(pattern, re.IGNORECASE if not self.params.file_case_sensitive else 0)
                 for file in (files + dirs):
                     if prog.match(file):
                         filesAndDirs.append(file)
             else: # not RegEx
-                if self.params.fileCaseSensitive:
-                    filesAndDirs =     fnmatch.filter(files, pattern) + fnmatch.filter(dirs, pattern)
+                if self.params.file_case_sensitive:
+                    filesAndDirs = fnmatch.filter(files, pattern) + fnmatch.filter(dirs, pattern)
                 else:
                     for n in files:
                         if fnmatch.fnmatch(n.lower(), pattern.lower()):
@@ -226,12 +238,14 @@ class SearchThread(threading.Thread, observer.Observable):
                 if(self.status == self.STATUS_STOPPED):
                     break
                 file = os.path.join(path, filename)
-                if (not self.params.fileHidden) and self.isHidden(file) >= 0:
+                if (not self.params.file_hidden) and self.isHidden(file, path):
+                    print path + " - " + file
                     continue
                 if file not in self.locateResult:
+                    if self.params.text_text and not self.isTextExists(file):
+                        continue
                     result.append(file)
                     self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, [file]))
-                print file
                     
     def pause(self):
         '''

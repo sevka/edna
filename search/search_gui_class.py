@@ -46,22 +46,24 @@ class SearchWindow(gtk.Window):
         '''
         params = SearchParams()
         
-        params.fileName = self.fileNameEntry.get_text()
-        params.fileType = self.fileTypeCombo.get_active()
-        params.fileExact = self.exactCB.get_active()
-        params.fileCaseSensitive = self.caseCB.get_active()
-        params.fileRegEx = self.regexCB.get_active()
+        params.file_name = self.fileNameEntry.get_text()
+        params.file_type = self.fileTypeCombo.get_active()
+        params.file_exact = self.exactCB.get_active()
+        params.file_case_sensitive = self.caseCB.get_active()
+        params.file_regex = self.regexCB.get_active()
         
         params.folder = self.fileChooser.get_current_folder()
-        params.folderRecursive = self.folderRecursiveCB.get_active()
+        params.folder_recursive = self.folderRecursiveCB.get_active()
         
-        params.textText = self.textEntry.get_text()
-        params.textCaseSensitive = self.textCaseCB.get_active()
-        params.textRegexCB = self.textRegexCB.get_active()
+        params.text_text = self.textEntry.get_text()
+        params.text_case_sensitive = self.textCaseCB.get_active()
+        params.text_regex = self.textRegexCB.get_active()
         
         #additional
-        params.fileHidden = self.hiddenCB.get_active()
-         
+        params.file_hidden = self.hiddenCB.get_active()
+        params.use_locate = self.useLocateCB.get_active()
+        params.follow_links = self.linksCB.get_active()
+        
         return params
         
     def startSearch(self,sender):
@@ -152,6 +154,8 @@ class SearchWindow(gtk.Window):
         self.set_default_size(800,500)
         vbox = gtk.VBox(False, 10)
         
+        self.tooltips = gtk.Tooltips()
+        
         #main params
         mainParamsVBox = gtk.VBox(False,10)
 
@@ -210,10 +214,18 @@ class SearchWindow(gtk.Window):
 
         addParamsVBox1 = gtk.VBox()
         
+        self.useLocateCB = gtk.CheckButton(_('Use UNIX \'locate\' command'))
+        self.useLocateCB.set_active(True)
+        self.tooltips.set_tip(self.useLocateCB, 'Possibly slow for text search')        
         self.hiddenCB = gtk.CheckButton(_('Process hidden files and folders'))
-        addParamsVBox1.pack_start(self.hiddenCB, False, False, 10)
+        self.linksCB = gtk.CheckButton(_('Follow simlinks'))
+        self.tooltips.set_tip(self.linksCB, 'Attention! Dead locks possible! ') 
+        self.linksCB.set_active(True)
+        addParamsVBox1.pack_start(self.useLocateCB, False, False)
+        addParamsVBox1.pack_start(self.hiddenCB, False, False)
+        addParamsVBox1.pack_start(self.linksCB, False, False)
         
-        addParamsHBox.pack_start(addParamsVBox1,False, False, 10 )
+        addParamsHBox.pack_start(addParamsVBox1,False, False, 10)
 
         addParamsExpander.add(addParamsHBox)
 
@@ -273,6 +285,7 @@ class SearchWindow(gtk.Window):
         label2.set_size_request(maxLabelWidth,-1)
         label3.set_size_request(maxLabelWidth,-1)
         self.statusBox.set_visible(False)
+        
 def progexit(*args):
     gtk.main_quit()
 
