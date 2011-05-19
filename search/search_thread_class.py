@@ -87,7 +87,7 @@ class SearchThread(threading.Thread, observer.Observable):
     status = 0
     params = None #: SearchParams
     
-        
+    
     def __init__(self, params):
         '''
         Конструктор
@@ -97,6 +97,43 @@ class SearchThread(threading.Thread, observer.Observable):
         threading.Thread.__init__(self)
         observer.Observable.__init__(self)
         self.params = params
+    
+    def shorten_path(self, path, max_len):
+        '''
+        Сокращает строку пути к файлу или папке до max_len символов (примерно :)
+        '''
+        if len(path) <= max_len:
+            return path
+        max_half_len = round(max_len / 2 - 6)
+        shorten_path = ''
+        parts = path.split('/')
+        for part in parts:
+            if part == '':
+                part = '/'
+            if len(os.path.join(shorten_path, part)) > max_half_len:
+                break
+            shorten_path = os.path.join(shorten_path, part)
+        parts.reverse()
+        shorten_path2 = ''
+        for part in parts:
+            if len(part + '/' + shorten_path2) > max_half_len:
+                break
+            shorten_path2 = part + ('/' if len(shorten_path2) > 0 else '') + shorten_path2
+        return shorten_path + '/..../' + shorten_path2
+    
+    def quote_for_posix(self, string):
+        '''quote a string so it can be used as an argument in a  posix shell
+           According to: http://www.unix.org/single_unix_specification/
+              2.2.1 Escape Character (Backslash)
+              A backslash that is not quoted shall preserve the literal value
+              of the following character, with the exception of a <newline>.
+              2.2.2 Single-Quotes
+              Enclosing characters in single-quotes ( '' ) shall preserve
+              the literal value of each character within the single-quotes.
+              A single-quote cannot occur within single-quotes.
+        '''
+        return "\\'".join("'" + p + "'" for p in string.split("'"))
+
     
     def isHidden(self, fileName, root=None):
         '''
@@ -108,9 +145,10 @@ class SearchThread(threading.Thread, observer.Observable):
                     полным путем.
         '''
         if root:
-            if not root.startswith('/') or ((fileName.startswith('/') and not fileName.startswith(root))):
+            if not os.path.isabs(root) or (os.path.isabs(fileName) and 
+                                           not fileName.startswith(root)):
                 return None
-            if fileName.startswith('/'):
+            if os.path.isabs(fileName):
                 fileName = fileName[len(root):]
         return (fileName.find('/.') >= 0) or (fileName.find('.') == 0)
     
@@ -125,13 +163,14 @@ class SearchThread(threading.Thread, observer.Observable):
             grepCommand = grepCommand + " --ignore-case "
         if self.params.text_regex:
             grepCommand = grepCommand + " --extended-regexp "
-        grepCommand = grepCommand + "'" + self.params.text_text + "' " + file
-        #print grepCommand
+        grepCommand = grepCommand + self.quote_for_posix(self.params.text_text) + ' ' + self.quote_for_posix(file)
+        print grepCommand
         grepResult = os.popen(grepCommand).read()
         if not grepResult or grepResult.splitlines()[0] != '1':
             return False
         else:
             return True
+
     def run(self):
         '''
         Метод запускатор треда
@@ -139,13 +178,11 @@ class SearchThread(threading.Thread, observer.Observable):
         print 'Start search'
         print self.params.folder + " " + str(self.params.file_type)
         self.status = self.STATUS_RUNNED
-        self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, 'Search with locate command'))
+        self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, 
+                                          'Search with locate command'))
         self.locateResult = []
         if self.params.file_name and self.params.use_locate:
             self.locateSearch()
-            #files = self.locateSearch()
-            #if files:
-            #    self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, files))
         self.walkSearch()
         self.notify_observers(SearchEvent(SearchEvent.TYPE_END))
     
@@ -160,17 +197,19 @@ class SearchThread(threading.Thread, observer.Observable):
             command = command + " --ignore-case "
             
         if self.params.file_regex:
-            command = command + " --basename --regex " + self.params.file_name
+            command = command + " --basename --regex " + self.quote_for_posix(self.params.file_name)
         elif self.params.file_exact:
-            command = command + " --basename '\\" + self.params.file_name + "'"
+            command = command + " --basename " + self.quote_for_posix(("\\" if self.params.file_name.startswith('*') else '') + self.params.file_name)
         else:
-            command = command + " --basename " + self.params.file_name
+            command = command + " --basename " + self.quote_for_posix(self.params.file_name)
             
-        command = command +     "|egrep \"^" + folder + '"'
-        #print command
+        command = command +     "|grep --extended-regexp " + self.quote_for_posix("^" + folder)
+        print command
         result = os.popen(command).read()
         lines = result.splitlines()
         result = []
+        
+        lastTime = time.time()
         for file in lines:
             self.checkForPause()
             if(self.status == self.STATUS_STOPPED):
@@ -179,8 +218,12 @@ class SearchThread(threading.Thread, observer.Observable):
                 if (not self.params.file_hidden) and self.isHidden(file, folder):
                     continue
                 if (self.params.file_type == self.params.FILE_TYPE_BOTH) or (self.params.file_type == self.params.FILE_TYPE_FOLDERS_ONLY and os.path.isdir(file)) or    (self.params.file_type == self.params.FILE_TYPE_FILES_ONLY and os.path.isfile(file)):
-                    if self.params.text_text and not self.isTextExists(file):
-                        continue
+                    if self.params.text_text:
+                        if round(time.time()) > lastTime:
+                            lastTime = round(time.time())
+                            self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, "Search text in " + self.shorten_path(file, 80) + " ..."))
+                        if not self.isTextExists(file):
+                            continue
                     self.locateResult.append(file)
                     self.notify_observers(SearchEvent(SearchEvent.TYPE_FILE_FOUND, [file]))
         #return self.locateResult
@@ -213,7 +256,8 @@ class SearchThread(threading.Thread, observer.Observable):
             #Вызываем не чаще чем раз в секунду
             if round(time.time()) > lastTime:
                 lastTime = round(time.time())
-                self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, "Search in " + path + "..."))
+                self.notify_observers(SearchEvent(SearchEvent.TYPE_NOTICE, "Search in " + self.shorten_path(path, 80) + "..."))
+                
             if not self.params.file_hidden and self.isHidden(path, folder):
                 continue
             filesAndDirs = []

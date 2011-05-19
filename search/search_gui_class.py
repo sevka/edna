@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #       search_gui_class.py
@@ -243,7 +244,7 @@ class SearchWindow(gtk.Window):
         self.statusLabel = gtk.Label('')
 #        statusLabel.set_justify(gtk.JUSTIFY_LEFT)
         self.statusLabel.set_alignment(0,0)
-        self.statusLabel.set_width_chars(50)
+        self.statusLabel.set_width_chars(120)
         self.statusBox.pack_start(self.spinner,False,False,10)
         self.statusBox.pack_start(self.statusLabel, False, False,10)
         
